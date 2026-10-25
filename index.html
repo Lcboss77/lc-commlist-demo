@@ -77,7 +77,7 @@ footer{border-top:1px solid var(--line);margin-top:48px;padding:22px 0;color:var
 <header class="hero">
   <h1><span>lc-commlist</span>: in-game commands and keybinds list</h1>
   <p>Players type <code>/commands</code> and see every command and keybind your server offers, read live from your database. Admins add entries from chat. Everything below runs in your browser: use the stage to try each function.</p>
-  <ul class="chips"><li>Lua</li><li>NUI (HTML, CSS, JS)</li><li>ESX</li><li>oxmysql / SQL</li></ul>
+  <ul class="chips"><li>Lua</li><li>NUI (HTML, CSS, JS)</li><li>ESX</li><li>QBCore</li><li>Standalone</li><li>oxmysql / SQL</li></ul>
 </header>
 
 <h2>Try it live</h2>
@@ -97,7 +97,9 @@ footer{border-top:1px solid var(--line);margin-top:48px;padding:22px 0;color:var
   </div>
   <div class="card ctl">
    <div class="ctlL">
-    <div class="row"><b>Your ESX group</b>
+    <div class="row"><b>Framework</b>
+      <span class="seg" id="fw"><button data-f="esx" class="on">ESX</button><button data-f="qbcore">QBCore</button><button data-f="standalone">Standalone</button></span></div>
+    <div class="row"><b id="roleLabel">Your ESX group</b>
       <span class="seg" id="role"><button data-r="user" class="on">user</button><button data-r="admin">admin</button></span></div>
     <div class="row"><label><input type="checkbox" id="fail"> Simulate a failed SQL insert</label></div>
     <div class="row">
@@ -127,9 +129,9 @@ footer{border-top:1px solid var(--line);margin-top:48px;padding:22px 0;color:var
 <div class="card">
 <ol style="margin:0;padding-left:20px">
   <li>Import <code>commands.sql</code> (creates the <code>commands</code> and <code>keybinds</code> tables).</li>
-  <li>Make sure <code>es_extended</code> and <code>oxmysql</code> are running.</li>
+  <li>Make sure <code>oxmysql</code> is running, plus <code>es_extended</code> (ESX) or <code>qb-core</code> (QBCore). Standalone servers need neither.</li>
   <li>Add <code>ensure lc-commlist</code> to your <code>server.cfg</code>.</li>
-  <li>Give your admin the ESX <code>admin</code> group, then use <code>/addcommand</code> and <code>/addkeybind</code> in-game.</li>
+  <li>Set who is an admin in <code>config.lua</code>: the ESX <code>admin</code> group, the QBCore <code>admin</code> permission, or the ACE permission <code>lc-commlist.admin</code> (standalone). Then use <code>/addcommand</code> and <code>/addkeybind</code> in-game.</li>
 </ol>
 <pre style="margin-top:12px">/commands                                    open the list (any player)
 /addcommand &lt;command&gt; &lt;description...&gt;        add a command (admin)
@@ -145,7 +147,7 @@ footer{border-top:1px solid var(--line);margin-top:48px;padding:22px 0;color:var
 var $=function(i){return document.getElementById(i)};
 var SEED={commands:[["phone","Open the phone"],["id","Show your ID card"],["report","Report a player to staff"],["clothes","Change your outfit"],["taxi","Call a taxi"],["radio","Toggle the radio"]],
           keybinds:[["F2","Open inventory"],["B","Toggle seatbelt"],["X","Point finger"],["H","Hands up"],["Y","Engine on and off"]]};
-var db,nextId,role="user",busy=false,nuiOpen=false,SRC=17;
+var db,nextId,role="user",busy=false,nuiOpen=false,SRC=17,FW="esx";
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function sleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
 
@@ -205,7 +207,10 @@ async function otherAdmin(){
 async function cmdAdd(kind,args){
   var isCmd=kind==="command",name=isCmd?"addcommand":"addkeybind";
   await log("client","/"+name+" "+args.join(" ")+"  (runs on the server)");
-  await log("server","xPlayer.getGroup() = '"+role+"'");
+  var chk=FW==="esx"?"xPlayer.getGroup() = '"+(role==="admin"?"admin":"user")+"'  (allowed: "+"admin, superadmin)"
+         :FW==="qbcore"?"QBCore.Functions.HasPermission("+SRC+", 'admin') = "+(role==="admin")
+         :"IsPlayerAceAllowed("+SRC+", 'lc-commlist.admin') = "+(role==="admin");
+  await log("server",chk);
   if(role!=="admin"){chat("err","Error","You do not have permission to use this command.");await log("server","not admin -> chat:addMessage Error");return}
   var first=args[0],text=args.slice(1).join(" ");if(first&&!text){text=isCmd?"No description provided":"No keybind description provided"}
   if(!first){chat("err","Error",isCmd?"Command text cannot be empty!":"Keybind cannot be empty!");await log("server","args[1] is nil -> chat:addMessage Error");return}
@@ -237,6 +242,11 @@ document.addEventListener("keydown",function(e){if(e.key==="Escape"&&nuiOpen){va
 $("chatForm").addEventListener("submit",function(e){e.preventDefault();var v=$("chatIn").value;$("chatIn").value="";run(v)});
 $("role").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;setRole(b.dataset.r)});
 function setRole(r){role=r;[].forEach.call($("role").children,function(b){b.className=b.dataset.r===r?"on":""})}
+function setFw(f){FW=f;[].forEach.call($("fw").children,function(b){b.className=b.dataset.f===f?"on":""});
+  $("roleLabel").textContent=f==="esx"?"Your ESX group":f==="qbcore"?"Your QBCore permission":"Your ACE permission";
+  var u=$("role").children[0],a=$("role").children[1];u.textContent=f==="standalone"?"no ACE":"user";a.textContent=f==="esx"?"admin":f==="qbcore"?"admin":"lc-commlist.admin";
+  log("info","framework: "+(f==="esx"?"ESX (es_extended)":f==="qbcore"?"QBCore (qb-core)":"standalone, ACE permissions only"))}
+$("fw").addEventListener("click",function(e){var b=e.target.closest("button");if(b)setFw(b.dataset.f)});
 $("reset").onclick=function(){resetDb();log("info","sample data restored")};
 $("empty").onclick=function(){db.commands=[];db.keybinds=[];renderDb();log("info","both tables emptied (DELETE FROM ...)")};
 $("other").onclick=otherAdmin;
@@ -258,6 +268,7 @@ var FUNCS=[
  ["Failure feedback","If the database insert fails, the admin sees 'Failed to add command!' (turn on the failure switch).",async function(){setRole("admin");$("fail").checked=true;await run("/addcommand test Will fail");$("fail").checked=false}],
  ["Empty database","With no entries, the script sends empty lists and the window shows 'No commands available' and 'No keybinds available'.",async function(){setRole("user");$("empty").click();await sleep(300);await run("/commands")}],
  ["Live refresh for open windows","If an admin adds an entry while another player has the list open, that player's window updates in place. Players with the window closed are not disturbed.",async function(){setRole("user");resetDb();await run("/commands");await sleep(1500);await otherAdmin()}],
+ ["Works on ESX, QBCore and standalone","The admin check adapts: ESX group, QBCore permission, or an ACE permission on standalone servers. Switch frameworks above and run an admin command.",async function(){setRole("admin");setFw("qbcore");await run("/addcommand heal Restore your health");await sleep(300);setFw("standalone");await run("/addkeybind F5 Open the map");setFw("esx")}],
  ["Bad rows are skipped","Rows with a blank command or keybind (for example from a manual SQL edit) are filtered out and never shown.",async function(){setRole("user");resetDb();$("blank").click();await sleep(300);await run("/commands")}]
 ];
 FUNCS.forEach(function(f,i){var d=document.createElement("div");d.className="card fn";d.innerHTML='<h3><span class="num">'+(i+1)+'.</span> '+esc(f[0])+'</h3><p>'+esc(f[1])+'</p>';
@@ -265,7 +276,7 @@ FUNCS.forEach(function(f,i){var d=document.createElement("div");d.className="car
     if(nuiOpen){var dd=$("ui").contentDocument;dd.getElementById("command-container").style.display="none";setFocus(false)}
     while(busy)await sleep(100);resetIfNeeded(i);$("stage").scrollIntoView({behavior:"smooth",block:"center"});await sleep(400);await f[2]()};
   d.appendChild(b);$("cards").appendChild(d)});
-function resetIfNeeded(i){if(i!==9&&i!==11&&db.commands.length===0)resetDb()}
+function resetIfNeeded(i){if(i!==9&&i!==12&&db.commands.length===0)resetDb()}
 
 /* ---------- city backdrop ---------- */
 (function(){var s=7;function r(){s=(s*9301+49297)%233280;return s/233280}var h="",x=0;
@@ -278,7 +289,7 @@ function fit(){var w=$("stage").clientWidth,vw=w<700?800:1600,f=$("ui");f.style.
 fit();window.addEventListener("resize",fit);if(window.ResizeObserver)new ResizeObserver(fit).observe($("stage"));
 resetDb();
 chat("sys","","Welcome. Type /commands (or use a button below the stage).");
-log("info","ready: ESX + oxmysql, tables commands and keybinds");
+log("info","ready: framework auto-detected (ESX), oxmysql, tables commands and keybinds");
 })();
 </script>
 </body>
