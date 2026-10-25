@@ -19,12 +19,12 @@ header.hero{padding:44px 0 20px}
 .chips li{border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:13px;color:var(--muted)}
 h2{font-size:26px;margin:44px 0 6px}
 .sub{color:var(--muted);margin:0 0 16px}
-.grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px}
-@media (max-width:900px){.grid{grid-template-columns:1fr}}
+.grid{display:grid;grid-template-columns:1fr;gap:16px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
 /* stage */
-.stage{position:relative;aspect-ratio:16/9;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:linear-gradient(#0b1230 0%,#2b1b4d 45%,#e0603a 82%,#2a1210 100%)}
+.stage{position:relative;aspect-ratio:16/11;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:linear-gradient(#0b1230 0%,#2b1b4d 45%,#e0603a 82%,#2a1210 100%)}
 .stage svg.city{position:absolute;inset:0;width:100%;height:100%}
+@media (max-width:700px){.stage{aspect-ratio:800/1100}}
 .hud{position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;font-size:12px;color:#fff;text-shadow:0 1px 3px #000;pointer-events:none}
 .badge{background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:2px 8px}
 .badge.on{border-color:var(--ok);color:var(--ok)}
@@ -37,13 +37,15 @@ h2{font-size:26px;margin:44px 0 6px}
 .chat input:disabled{opacity:.4}
 .chat button{background:var(--acc);border:0;border-radius:6px;color:#1b1b1b;font-weight:700;padding:0 12px;cursor:pointer}
 .chat button:disabled{opacity:.4;cursor:default}
-#ui{position:absolute;inset:0;width:100%;height:100%;border:0;background:transparent;display:none}
+#ui{position:absolute;left:0;top:0;width:1600px;height:1100px;transform-origin:0 0;border:0;background:transparent;display:none}
 #ui.open{display:block}
 .quick{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .quick button,.ctl button,.try{background:transparent;color:var(--acc2);border:1px solid var(--acc);border-radius:8px;padding:6px 10px;font:inherit;font-size:13px;cursor:pointer}
 .quick button:hover,.ctl button:hover,.try:hover{background:rgba(255,102,0,.15)}
 code{font-family:ui-monospace,Consolas,monospace;font-size:.92em;color:var(--acc2)}
-.ctl{display:flex;flex-direction:column;gap:10px}
+.ctl{display:grid;grid-template-columns:1fr;gap:14px}
+.ctlL{display:flex;flex-direction:column;gap:10px}
+@media (min-width:900px){.ctl{grid-template-columns:minmax(260px,1fr) 1.6fr}}
 .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .seg button{border:0;border-radius:0;background:transparent;color:var(--muted);padding:6px 12px;cursor:pointer;font:inherit;font-size:13px}
@@ -94,6 +96,7 @@ footer{border-top:1px solid var(--line);margin-top:48px;padding:22px 0;color:var
     <div class="quick" id="quick"></div>
   </div>
   <div class="card ctl">
+   <div class="ctlL">
     <div class="row"><b>Your ESX group</b>
       <span class="seg" id="role"><button data-r="user" class="on">user</button><button data-r="admin">admin</button></span></div>
     <div class="row"><label><input type="checkbox" id="fail"> Simulate a failed SQL insert</label></div>
@@ -103,6 +106,7 @@ footer{border-top:1px solid var(--line);margin-top:48px;padding:22px 0;color:var
       <button id="blank">Insert blank rows (SQL)</button>
       <button id="other">Another admin adds an entry now</button>
     </div>
+   </div>
     <div><b style="font-size:14px">What the script is doing</b>
       <div class="log" id="log" role="log"></div></div>
   </div>
@@ -270,6 +274,8 @@ function resetIfNeeded(i){if(i!==9&&i!==11&&db.commands.length===0)resetDb()}
     x+=w+4}
   $("city").innerHTML=h})();
 
+function fit(){var w=$("stage").clientWidth,vw=w<700?800:1600,f=$("ui");f.style.width=vw+"px";f.style.transform="scale("+(w/vw)+")"}
+fit();window.addEventListener("resize",fit);if(window.ResizeObserver)new ResizeObserver(fit).observe($("stage"));
 resetDb();
 chat("sys","","Welcome. Type /commands (or use a button below the stage).");
 log("info","ready: ESX + oxmysql, tables commands and keybinds");
