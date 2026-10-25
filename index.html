@@ -101,6 +101,7 @@ footer{border-top:1px solid var(--line);margin-top:48px;padding:22px 0;color:var
       <button id="reset">Reset sample data</button>
       <button id="empty">Empty both tables</button>
       <button id="blank">Insert blank rows (SQL)</button>
+      <button id="other">Another admin adds an entry now</button>
     </div>
     <div><b style="font-size:14px">What the script is doing</b>
       <div class="log" id="log" role="log"></div></div>
@@ -108,7 +109,7 @@ footer{border-top:1px solid var(--line);margin-top:48px;padding:22px 0;color:var
 </div>
 
 <h2>The database</h2>
-<p class="sub">The script reads these two tables every time a player opens the list. New rows show up the next time <code>/commands</code> is run.</p>
+<p class="sub">The script reads these two tables every time a player opens the list. New rows appear straight away in any open window, or the next time <code>/commands</code> is run.</p>
 <div class="tbls">
   <div class="card"><b>commands</b><table id="tCmd"></table></div>
   <div class="card"><b>keybinds</b><table id="tKey"></table></div>
@@ -179,12 +180,30 @@ async function cmdCommands(){
   var f=$("ui");function send(){f.contentWindow.postMessage({type:"showCommands",commands:vc,keybinds:vk},"*")}
   if(f.contentDocument&&f.contentDocument.readyState==="complete")send();else f.addEventListener("load",send,{once:true});
 }
+function validLists(){return{vc:db.commands.filter(function(c){return c.command}),vk:db.keybinds.filter(function(k){return k.keybind})}}
+async function refreshOpen(){
+  var v=validLists();
+  await log("server","refreshOpenWindows -> TriggerClientEvent('Lcboss77:refreshIfOpen', -1, "+v.vc.length+" commands, "+v.vk.length+" keybinds)");
+  if(nuiOpen){await log("client","isUIOpen is true -> SendNUIMessage(showCommands): the open list updates in place");
+    $("ui").contentWindow.postMessage({type:"showCommands",commands:v.vc,keybinds:v.vk},"*")}
+  else{await log("client","isUIOpen is false -> ignored (the entry shows next time /commands is opened)")}
+}
+var OTHER=[["announce","Send a server announcement"],["tow","Call a tow truck"],["mechanic","Call a mechanic"],["weather","Check the weather"]],otherN=0;
+async function otherAdmin(){
+  if(busy)return;busy=true;
+  try{var o=OTHER[otherN++%OTHER.length];
+    await log("info","another admin runs /addcommand "+o[0]+" "+o[1]);
+    await log("sql","INSERT INTO commands (command, commandText) VALUES ('"+o[0]+"', '"+o[1]+"')");
+    var row={id:nextId.commands++,command:o[0],commandText:o[1]};db.commands.push(row);renderDb(row.id);
+    await refreshOpen();
+  }finally{busy=false}
+}
 async function cmdAdd(kind,args){
   var isCmd=kind==="command",name=isCmd?"addcommand":"addkeybind";
   await log("client","/"+name+" "+args.join(" ")+"  (runs on the server)");
   await log("server","xPlayer.getGroup() = '"+role+"'");
   if(role!=="admin"){chat("err","Error","You do not have permission to use this command.");await log("server","not admin -> chat:addMessage Error");return}
-  var first=args[0],text=args.slice(1).join(" ");
+  var first=args[0],text=args.slice(1).join(" ");if(first&&!text){text=isCmd?"No description provided":"No keybind description provided"}
   if(!first){chat("err","Error",isCmd?"Command text cannot be empty!":"Keybind cannot be empty!");await log("server","args[1] is nil -> chat:addMessage Error");return}
   if(!isCmd)await log("server",'print("Adding keybind:", "'+first+'", "'+text+'")');
   await log("sql","INSERT INTO "+(isCmd?"commands (command, commandText)":"keybinds (keybind, keybindText)")+" VALUES ('"+first+"', '"+text+"')");
@@ -194,7 +213,7 @@ async function cmdAdd(kind,args){
   if(rows>0){var t=isCmd?"commands":"keybinds",row=isCmd?{id:nextId[t]++,command:first,commandText:text}:{id:nextId[t]++,keybind:first,keybindText:text};db[t].push(row);id=row.id;renderDb(id);
     chat("ok","Success",isCmd?"Command added successfully!":"Keybind added successfully!");await log("server","rowsChanged > 0 -> chat:addMessage Success")}
   else{chat("err","Error",isCmd?"Failed to add command!":"Failed to add keybind!");await log("server","rowsChanged == 0 -> chat:addMessage Error")}
-  await log("server","re-queries commands + keybinds (the list shows the new entry next time /commands is opened)");
+  if(rows>0)await refreshOpen();
 }
 async function run(line){
   if(busy||nuiOpen)return;line=line.trim();if(!line)return;busy=true;
@@ -216,6 +235,7 @@ $("role").addEventListener("click",function(e){var b=e.target.closest("button");
 function setRole(r){role=r;[].forEach.call($("role").children,function(b){b.className=b.dataset.r===r?"on":""})}
 $("reset").onclick=function(){resetDb();log("info","sample data restored")};
 $("empty").onclick=function(){db.commands=[];db.keybinds=[];renderDb();log("info","both tables emptied (DELETE FROM ...)")};
+$("other").onclick=otherAdmin;
 $("blank").onclick=function(){db.commands.push({id:nextId.commands++,command:"",commandText:"broken row"});db.keybinds.push({id:nextId.keybinds++,keybind:"",keybindText:"broken row"});renderDb();log("info","inserted one blank row into each table directly in SQL")};
 
 var QUICK=["/commands","/addcommand heal Restore your health","/addkeybind F5 Open the map","/addcommand","/unknown"];
@@ -229,10 +249,11 @@ var FUNCS=[
  ["Admins add commands","/addcommand <command> <description...> saves a new command to the database and confirms in chat.",async function(){setRole("admin");await run("/addcommand heal Restore your health")}],
  ["Admins add keybinds","/addkeybind <key> <description...> does the same for keybinds.",async function(){setRole("admin");await run("/addkeybind F5 Open the map")}],
  ["Admin-only protection","A normal player running /addcommand gets a permission error. Nothing is written.",async function(){setRole("user");await run("/addcommand hack Free money")}],
- ["Input check","An admin running /addcommand with nothing after it gets a clear error instead of a broken row.",async function(){setRole("admin");await run("/addcommand")}],
+ ["Input check","An admin running /addcommand with nothing after it gets a clear error instead of a broken row. With a command but no description, a default description is saved.",async function(){setRole("admin");await run("/addcommand")}],
  ["Live from the database","Add an entry, then open /commands again. The new entry is in the list because it is read fresh each time.",async function(){setRole("admin");await run("/addcommand heal Restore your health");await sleep(300);await run("/commands")}],
  ["Failure feedback","If the database insert fails, the admin sees 'Failed to add command!' (turn on the failure switch).",async function(){setRole("admin");$("fail").checked=true;await run("/addcommand test Will fail");$("fail").checked=false}],
  ["Empty database","With no entries, the script sends empty lists and the window shows 'No commands available' and 'No keybinds available'.",async function(){setRole("user");$("empty").click();await sleep(300);await run("/commands")}],
+ ["Live refresh for open windows","If an admin adds an entry while another player has the list open, that player's window updates in place. Players with the window closed are not disturbed.",async function(){setRole("user");resetDb();await run("/commands");await sleep(1500);await otherAdmin()}],
  ["Bad rows are skipped","Rows with a blank command or keybind (for example from a manual SQL edit) are filtered out and never shown.",async function(){setRole("user");resetDb();$("blank").click();await sleep(300);await run("/commands")}]
 ];
 FUNCS.forEach(function(f,i){var d=document.createElement("div");d.className="card fn";d.innerHTML='<h3><span class="num">'+(i+1)+'.</span> '+esc(f[0])+'</h3><p>'+esc(f[1])+'</p>';
@@ -240,7 +261,7 @@ FUNCS.forEach(function(f,i){var d=document.createElement("div");d.className="car
     if(nuiOpen){var dd=$("ui").contentDocument;dd.getElementById("command-container").style.display="none";setFocus(false)}
     while(busy)await sleep(100);resetIfNeeded(i);$("stage").scrollIntoView({behavior:"smooth",block:"center"});await sleep(400);await f[2]()};
   d.appendChild(b);$("cards").appendChild(d)});
-function resetIfNeeded(i){if(i!==9&&i!==10&&db.commands.length===0)resetDb()}
+function resetIfNeeded(i){if(i!==9&&i!==11&&db.commands.length===0)resetDb()}
 
 /* ---------- city backdrop ---------- */
 (function(){var s=7;function r(){s=(s*9301+49297)%233280;return s/233280}var h="",x=0;
