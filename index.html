@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lc-commlist: interactive demo</title>
+<meta name="description" content="Try every function of lc-commlist, an in-game commands and keybinds list for FiveM ESX servers.">
+<style>
+:root{--bg:#0d0f13;--panel:#151a21;--line:#262e39;--text:#e9edf3;--muted:#98a4b5;--acc:#ff6600;--acc2:#ffa45c;--ok:#4cd68a;--bad:#ff6b6b;--blue:#4cc2ff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+a{color:var(--acc2)}
+.wrap{max-width:1200px;margin:0 auto;padding:0 16px}
+header.hero{padding:44px 0 20px}
+.hero h1{font-size:clamp(30px,5vw,46px);margin:0 0 8px;line-height:1.1}
+.hero h1 span{color:var(--acc)}
+.hero p{color:var(--muted);max-width:720px;margin:0 0 14px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;list-style:none;margin:0;padding:0}
+.chips li{border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:13px;color:var(--muted)}
+h2{font-size:26px;margin:44px 0 6px}
+.sub{color:var(--muted);margin:0 0 16px}
+.grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px}
+@media (max-width:900px){.grid{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+/* stage */
+.stage{position:relative;aspect-ratio:16/9;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:linear-gradient(#0b1230 0%,#2b1b4d 45%,#e0603a 82%,#2a1210 100%)}
+.stage svg.city{position:absolute;inset:0;width:100%;height:100%}
+.hud{position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;font-size:12px;color:#fff;text-shadow:0 1px 3px #000;pointer-events:none}
+.badge{background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:2px 8px}
+.badge.on{border-color:var(--ok);color:var(--ok)}
+.chat{position:absolute;left:12px;bottom:12px;width:min(48%,420px);font-size:13px}
+.msgs{display:flex;flex-direction:column;gap:3px;margin-bottom:6px;max-height:150px;overflow:hidden;justify-content:flex-end}
+.msg{background:rgba(0,0,0,.55);border-radius:4px;padding:3px 8px;text-shadow:none}
+.msg b.err{color:var(--bad)}.msg b.ok{color:var(--ok)}.msg b.sys{color:var(--blue)}
+.chat form{display:flex;gap:6px}
+.chat input{flex:1;background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.25);border-radius:6px;color:#fff;padding:7px 10px;font:inherit;min-width:0}
+.chat input:disabled{opacity:.4}
+.chat button{background:var(--acc);border:0;border-radius:6px;color:#1b1b1b;font-weight:700;padding:0 12px;cursor:pointer}
+.chat button:disabled{opacity:.4;cursor:default}
+#ui{position:absolute;inset:0;width:100%;height:100%;border:0;background:transparent;display:none}
+#ui.open{display:block}
+.quick{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.quick button,.ctl button,.try{background:transparent;color:var(--acc2);border:1px solid var(--acc);border-radius:8px;padding:6px 10px;font:inherit;font-size:13px;cursor:pointer}
+.quick button:hover,.ctl button:hover,.try:hover{background:rgba(255,102,0,.15)}
+code{font-family:ui-monospace,Consolas,monospace;font-size:.92em;color:var(--acc2)}
+.ctl{display:flex;flex-direction:column;gap:10px}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:transparent;color:var(--muted);padding:6px 12px;cursor:pointer;font:inherit;font-size:13px}
+.seg button.on{background:var(--acc);color:#1b1b1b;font-weight:700}
+.log{height:300px;overflow:auto;font:12.5px/1.5 ui-monospace,Consolas,monospace;background:#0a0c10;border:1px solid var(--line);border-radius:8px;padding:8px}
+.log div{padding:1px 0}
+.tag{display:inline-block;min-width:58px;text-align:center;border-radius:4px;padding:0 6px;margin-right:6px;font-size:11px;font-weight:700;color:#10131a}
+.t-client{background:var(--blue)}.t-server{background:var(--acc)}.t-sql{background:#b79bff}.t-nui{background:var(--ok)}.t-info{background:#8a93a3}
+.tbls{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:700px){.tbls{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:600}
+tr.skip td{color:var(--bad);text-decoration:line-through}
+tr.new{animation:flash 1.4s}
+@keyframes flash{from{background:rgba(255,102,0,.35)}to{background:transparent}}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.fn{display:flex;flex-direction:column;gap:6px}
+.fn h3{margin:0;font-size:17px}
+.fn p{margin:0;color:var(--muted);font-size:14px;flex:1}
+.fn .num{color:var(--acc);font-weight:800}
+pre{background:#0a0c10;border:1px solid var(--line);border-radius:8px;padding:10px;overflow:auto;font-size:13px;margin:0}
+footer{border-top:1px solid var(--line);margin-top:48px;padding:22px 0;color:var(--muted);font-size:14px}
+.note{border-left:3px solid var(--acc);padding:8px 12px;background:rgba(255,102,0,.07);border-radius:0 8px 8px 0;color:var(--muted);font-size:14px;margin:12px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1><span>lc-commlist</span>: in-game commands and keybinds list</h1>
+  <p>Players type <code>/commands</code> and see every command and keybind your server offers, read live from your database. Admins add entries from chat. Everything below runs in your browser: use the stage to try each function.</p>
+  <ul class="chips"><li>Lua</li><li>NUI (HTML, CSS, JS)</li><li>ESX</li><li>oxmysql / SQL</li></ul>
+</header>
+
+<h2>Try it live</h2>
+<p class="sub">Type in the chat box or use the shortcut buttons. The log on the right shows what the real script does at each step.</p>
+<div class="grid">
+  <div>
+    <div class="stage" id="stage">
+      <svg class="city" id="city" viewBox="0 0 1000 560" preserveAspectRatio="xMidYMax slice" aria-hidden="true"></svg>
+      <div class="hud"><span class="badge">Los Santos · demo server</span><span class="badge" id="focus">NUI focus: OFF</span></div>
+      <div class="chat">
+        <div class="msgs" id="msgs" aria-live="polite"></div>
+        <form id="chatForm"><input id="chatIn" autocomplete="off" placeholder="/commands" aria-label="Chat command"><button id="chatGo" type="submit">Send</button></form>
+      </div>
+      <iframe id="ui" src="ui.html" title="lc-commlist interface"></iframe>
+    </div>
+    <div class="quick" id="quick"></div>
+  </div>
+  <div class="card ctl">
+    <div class="row"><b>Your ESX group</b>
+      <span class="seg" id="role"><button data-r="user" class="on">user</button><button data-r="admin">admin</button></span></div>
+    <div class="row"><label><input type="checkbox" id="fail"> Simulate a failed SQL insert</label></div>
+    <div class="row">
+      <button id="reset">Reset sample data</button>
+      <button id="empty">Empty both tables</button>
+      <button id="blank">Insert blank rows (SQL)</button>
+    </div>
+    <div><b style="font-size:14px">What the script is doing</b>
+      <div class="log" id="log" role="log"></div></div>
+  </div>
+</div>
+
+<h2>The database</h2>
+<p class="sub">The script reads these two tables every time a player opens the list. New rows show up the next time <code>/commands</code> is run.</p>
+<div class="tbls">
+  <div class="card"><b>commands</b><table id="tCmd"></table></div>
+  <div class="card"><b>keybinds</b><table id="tKey"></table></div>
+</div>
+
+<h2>Every function</h2>
+<p class="sub">Each card runs that behaviour on the stage above.</p>
+<div class="cards" id="cards"></div>
+
+<h2>Install</h2>
+<div class="card">
+<ol style="margin:0;padding-left:20px">
+  <li>Import <code>commands.sql</code> (creates the <code>commands</code> and <code>keybinds</code> tables).</li>
+  <li>Make sure <code>es_extended</code> and <code>oxmysql</code> are running.</li>
+  <li>Add <code>ensure lc-commlist</code> to your <code>server.cfg</code>.</li>
+  <li>Give your admin the ESX <code>admin</code> group, then use <code>/addcommand</code> and <code>/addkeybind</code> in-game.</li>
+</ol>
+<pre style="margin-top:12px">/commands                                    open the list (any player)
+/addcommand &lt;command&gt; &lt;description...&gt;        add a command (admin)
+/addkeybind &lt;key&gt; &lt;description...&gt;          add a keybind (admin)</pre>
+</div>
+<div class="note">This page is a browser simulation of the server side. The interface you see on the stage is the script's own <code>index.html</code>, <code>style.css</code> and <code>index.js</code>, unchanged.</div>
+</div>
+<footer><div class="wrap">lc-commlist by Lcboss77 · <a href="https://github.com/Lcboss77">GitHub</a> · <a href="https://discord.gg/vea5eC334Z">Discord</a></div></footer>
+
+<script>
+(function(){
+"use strict";
+var $=function(i){return document.getElementById(i)};
+var SEED={commands:[["phone","Open the phone"],["id","Show your ID card"],["report","Report a player to staff"],["clothes","Change your outfit"],["taxi","Call a taxi"],["radio","Toggle the radio"]],
+          keybinds:[["F2","Open inventory"],["B","Toggle seatbelt"],["X","Point finger"],["H","Hands up"],["Y","Engine on and off"]]};
+var db,nextId,role="user",busy=false,nuiOpen=false,SRC=17;
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function sleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
+
+/* ---------- state ---------- */
+function resetDb(){nextId={commands:1,keybinds:1};db={commands:[],keybinds:[]};
+  SEED.commands.forEach(function(c){db.commands.push({id:nextId.commands++,command:c[0],commandText:c[1]})});
+  SEED.keybinds.forEach(function(k){db.keybinds.push({id:nextId.keybinds++,keybind:k[0],keybindText:k[1]})});renderDb();}
+function renderDb(newId){
+  var c='<tr><th>id</th><th>command</th><th>commandText</th></tr>';
+  db.commands.forEach(function(r){c+='<tr class="'+(!r.command?'skip ':'')+(r.id===newId?'new':'')+'"><td>'+r.id+'</td><td>'+esc(r.command||"(blank)")+'</td><td>'+esc(r.commandText)+'</td></tr>'});
+  if(!db.commands.length)c+='<tr><td colspan="3" style="color:var(--muted)">empty</td></tr>';
+  var k='<tr><th>id</th><th>keybind</th><th>keybindText</th></tr>';
+  db.keybinds.forEach(function(r){k+='<tr class="'+(!r.keybind?'skip ':'')+(r.id===newId?'new':'')+'"><td>'+r.id+'</td><td>'+esc(r.keybind||"(blank)")+'</td><td>'+esc(r.keybindText)+'</td></tr>'});
+  if(!db.keybinds.length)k+='<tr><td colspan="3" style="color:var(--muted)">empty</td></tr>';
+  $("tCmd").innerHTML=c;$("tKey").innerHTML=k;}
+
+/* ---------- log + chat ---------- */
+function log(tag,text){var d=document.createElement("div");d.innerHTML='<span class="tag t-'+tag+'">'+tag.toUpperCase()+'</span>'+esc(text);$("log").appendChild(d);$("log").scrollTop=1e6;return sleep(230);}
+function chat(kind,who,text){var d=document.createElement("div");d.className="msg";d.innerHTML=(who?'<b class="'+kind+'">'+esc(who)+'</b> ':'')+esc(text);var m=$("msgs");m.appendChild(d);while(m.children.length>7)m.removeChild(m.firstChild);}
+function setFocus(on){nuiOpen=on;$("focus").textContent="NUI focus: "+(on?"ON":"OFF");$("focus").className="badge"+(on?" on":"");$("chatIn").disabled=on;$("chatGo").disabled=on;$("ui").className=on?"open":"";if(!on)$("chatIn").focus({preventScroll:true});}
+
+/* ---------- the script's behaviour ---------- */
+async function cmdCommands(){
+  await log("client",'RegisterCommand("commands") -> TriggerServerEvent("Lcboss77:requestCommands")');
+  await log("server",'AddEventHandler("Lcboss77:requestCommands")  source = '+SRC);
+  await log("sql","SELECT * FROM commands   -> "+db.commands.length+" row(s)");
+  await log("sql","SELECT * FROM keybinds   -> "+db.keybinds.length+" row(s)");
+  var vc=[],vk=[];
+  for(var i=0;i<db.commands.length;i++){var c=db.commands[i];if(c.command){vc.push(c)}else{await log("server",'print("Invalid command skipped: ", '+JSON.stringify(c)+")")}}
+  for(var j=0;j<db.keybinds.length;j++){var k=db.keybinds[j];if(k.keybind){vk.push(k)}else{await log("server",'print("Invalid keybind skipped: ", '+JSON.stringify(k)+")")}}
+  if(!(vc.length>0||vk.length>0)){await log("server",'print("Error: No valid commands or keybinds available to send.")');await log("server",'TriggerClientEvent("Lcboss77:showUpdatedCommands", '+SRC+", {}, {})")}
+  else{await log("server",'TriggerClientEvent("Lcboss77:showUpdatedCommands", '+SRC+", "+vc.length+" commands, "+vk.length+" keybinds)")}
+  await log("client","SetNuiFocus(true, true)");
+  await log("nui",'SendNUIMessage({ type = "showCommands" })  -> list renders');
+  setFocus(true);
+  var f=$("ui");function send(){f.contentWindow.postMessage({type:"showCommands",commands:vc,keybinds:vk},"*")}
+  if(f.contentDocument&&f.contentDocument.readyState==="complete")send();else f.addEventListener("load",send,{once:true});
+}
+async function cmdAdd(kind,args){
+  var isCmd=kind==="command",name=isCmd?"addcommand":"addkeybind";
+  await log("client","/"+name+" "+args.join(" ")+"  (runs on the server)");
+  await log("server","xPlayer.getGroup() = '"+role+"'");
+  if(role!=="admin"){chat("err","Error","You do not have permission to use this command.");await log("server","not admin -> chat:addMessage Error");return}
+  var first=args[0],text=args.slice(1).join(" ");
+  if(!first){chat("err","Error",isCmd?"Command text cannot be empty!":"Keybind cannot be empty!");await log("server","args[1] is nil -> chat:addMessage Error");return}
+  if(!isCmd)await log("server",'print("Adding keybind:", "'+first+'", "'+text+'")');
+  await log("sql","INSERT INTO "+(isCmd?"commands (command, commandText)":"keybinds (keybind, keybindText)")+" VALUES ('"+first+"', '"+text+"')");
+  var rows=$("fail").checked?0:1;
+  if(!isCmd)await log("server",'print("Rows Changed:", '+rows+")");
+  var id=null;
+  if(rows>0){var t=isCmd?"commands":"keybinds",row=isCmd?{id:nextId[t]++,command:first,commandText:text}:{id:nextId[t]++,keybind:first,keybindText:text};db[t].push(row);id=row.id;renderDb(id);
+    chat("ok","Success",isCmd?"Command added successfully!":"Keybind added successfully!");await log("server","rowsChanged > 0 -> chat:addMessage Success")}
+  else{chat("err","Error",isCmd?"Failed to add command!":"Failed to add keybind!");await log("server","rowsChanged == 0 -> chat:addMessage Error")}
+  await log("server","re-queries commands + keybinds (the list shows the new entry next time /commands is opened)");
+}
+async function run(line){
+  if(busy||nuiOpen)return;line=line.trim();if(!line)return;busy=true;
+  chat("sys","",line);
+  var p=line.replace(/^\//,"").split(/\s+/),c=p[0].toLowerCase(),a=p.slice(1);
+  try{
+    if(c==="commands")await cmdCommands();
+    else if(c==="addcommand")await cmdAdd("command",a);
+    else if(c==="addkeybind")await cmdAdd("keybind",a);
+    else{chat("sys","","Unknown command. Try /commands, /addcommand or /addkeybind.")}
+  }finally{busy=false}
+}
+
+/* ---------- wiring ---------- */
+window.addEventListener("message",function(e){if(e.data&&e.data.lcDemo==="closeUI"){log("nui","closeUI callback -> SetNuiFocus(false, false)");setFocus(false)}});
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&nuiOpen){var d=$("ui").contentDocument;d.getElementById("command-container").style.display="none";log("nui","Escape pressed -> closeUI callback -> SetNuiFocus(false, false)");setFocus(false)}});
+$("chatForm").addEventListener("submit",function(e){e.preventDefault();var v=$("chatIn").value;$("chatIn").value="";run(v)});
+$("role").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;setRole(b.dataset.r)});
+function setRole(r){role=r;[].forEach.call($("role").children,function(b){b.className=b.dataset.r===r?"on":""})}
+$("reset").onclick=function(){resetDb();log("info","sample data restored")};
+$("empty").onclick=function(){db.commands=[];db.keybinds=[];renderDb();log("info","both tables emptied (DELETE FROM ...)")};
+$("blank").onclick=function(){db.commands.push({id:nextId.commands++,command:"",commandText:"broken row"});db.keybinds.push({id:nextId.keybinds++,keybind:"",keybindText:"broken row"});renderDb();log("info","inserted one blank row into each table directly in SQL")};
+
+var QUICK=["/commands","/addcommand heal Restore your health","/addkeybind F5 Open the map","/addcommand","/unknown"];
+QUICK.forEach(function(q){var b=document.createElement("button");b.type="button";b.textContent=q;b.onclick=function(){run(q)};$("quick").appendChild(b)});
+
+/* ---------- function cards ---------- */
+var FUNCS=[
+ ["Open the list","Any player types /commands and the list opens with the server's commands.",async function(){setRole("user");await run("/commands")}],
+ ["Two tabs: Commands and Keybinds","Switch tabs inside the window. Each tab lists its own entries from the database.",async function(){setRole("user");await run("/commands");await sleep(900);var t=$("ui").contentDocument.querySelector('[data-tab="keybinds"]');if(t)t.click()}],
+ ["Close it","Close with the x button or the Escape key. Mouse and keyboard control returns to the game (SetNuiFocus off).",async function(){setRole("user");await run("/commands")}],
+ ["Admins add commands","/addcommand <command> <description...> saves a new command to the database and confirms in chat.",async function(){setRole("admin");await run("/addcommand heal Restore your health")}],
+ ["Admins add keybinds","/addkeybind <key> <description...> does the same for keybinds.",async function(){setRole("admin");await run("/addkeybind F5 Open the map")}],
+ ["Admin-only protection","A normal player running /addcommand gets a permission error. Nothing is written.",async function(){setRole("user");await run("/addcommand hack Free money")}],
+ ["Input check","An admin running /addcommand with nothing after it gets a clear error instead of a broken row.",async function(){setRole("admin");await run("/addcommand")}],
+ ["Live from the database","Add an entry, then open /commands again. The new entry is in the list because it is read fresh each time.",async function(){setRole("admin");await run("/addcommand heal Restore your health");await sleep(300);await run("/commands")}],
+ ["Failure feedback","If the database insert fails, the admin sees 'Failed to add command!' (turn on the failure switch).",async function(){setRole("admin");$("fail").checked=true;await run("/addcommand test Will fail");$("fail").checked=false}],
+ ["Empty database","With no entries, the script sends empty lists and the window shows 'No commands available' and 'No keybinds available'.",async function(){setRole("user");$("empty").click();await sleep(300);await run("/commands")}],
+ ["Bad rows are skipped","Rows with a blank command or keybind (for example from a manual SQL edit) are filtered out and never shown.",async function(){setRole("user");resetDb();$("blank").click();await sleep(300);await run("/commands")}]
+];
+FUNCS.forEach(function(f,i){var d=document.createElement("div");d.className="card fn";d.innerHTML='<h3><span class="num">'+(i+1)+'.</span> '+esc(f[0])+'</h3><p>'+esc(f[1])+'</p>';
+  var b=document.createElement("button");b.className="try";b.type="button";b.textContent="Try it";b.onclick=async function(){
+    if(nuiOpen){var dd=$("ui").contentDocument;dd.getElementById("command-container").style.display="none";setFocus(false)}
+    while(busy)await sleep(100);resetIfNeeded(i);$("stage").scrollIntoView({behavior:"smooth",block:"center"});await sleep(400);await f[2]()};
+  d.appendChild(b);$("cards").appendChild(d)});
+function resetIfNeeded(i){if(i!==9&&i!==10&&db.commands.length===0)resetDb()}
+
+/* ---------- city backdrop ---------- */
+(function(){var s=7;function r(){s=(s*9301+49297)%233280;return s/233280}var h="",x=0;
+  while(x<1000){var w=40+r()*70,ht=120+r()*300;h+='<rect x="'+x+'" y="'+(560-ht)+'" width="'+w+'" height="'+ht+'" fill="#0c0d1a" opacity=".9"/>';
+    for(var wy=560-ht+12;wy<548;wy+=22)for(var wx=x+8;wx<x+w-10;wx+=16)if(r()>.62)h+='<rect x="'+wx+'" y="'+wy+'" width="6" height="9" fill="#ffd27a" opacity="'+(0.4+r()*.5).toFixed(2)+'"/>';
+    x+=w+4}
+  $("city").innerHTML=h})();
+
+resetDb();
+chat("sys","","Welcome. Type /commands (or use a button below the stage).");
+log("info","ready: ESX + oxmysql, tables commands and keybinds");
+})();
+</script>
+</body>
+</html>
